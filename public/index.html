@@ -2,7 +2,59 @@
 <html>
 <head>
   <title>AIU Sandbox Tester</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      margin: 40px;
+      background: #f5f6fa;
+    }
+
+    h2 {
+      color: #2f3640;
+    }
+
+    input, select, button {
+      padding: 8px;
+      margin: 5px;
+    }
+
+    button {
+      background: #273c75;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #40739e;
+    }
+
+    .card {
+      background: white;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #dcdde1;
+    }
+  </style>
 </head>
+
 <body>
 
   <h2>AIU Sandbox Tester</h2>
@@ -12,56 +64,114 @@
     <option value="i1002:o1004">Crop Area API</option>
   </select>
 
-  <br><br>
+  <br>
 
   <label>Aadhaar:</label>
-  <input type="text" id="aadhaar" />
+  <input type="text" id="aadhaar" value="876094193181"/>
 
-  <br><br>
+  <br>
 
   <label>State Code:</label>
-  <input type="text" id="state" value="9" />
+  <input type="text" id="state" value="9"/>
 
-  <br><br>
+  <br>
 
   <button onclick="fetchData()">Fetch Data</button>
 
-  <h3>Result:</h3>
-  <pre id="result"></pre>
+  <div id="result"></div>
 
   <script>
     async function fetchData() {
       const aadhaar = document.getElementById("aadhaar").value;
       const state = document.getElementById("state").value;
 
-      const res = await fetch("http://localhost:3000/fetch-farmer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          aadhaar,
-          state
-        })
+      document.getElementById("result").innerHTML =
+        "<p>⏳ Fetching data...</p>";
+
+      try {
+        const res = await fetch("/fetch-farmer", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ aadhaar, state })
+        });
+
+        const data = await res.json();
+
+        const correlationId = data.correlation_id;
+
+        // Polling
+        setTimeout(async () => {
+          const statusRes = await fetch(`/status/${correlationId}`);
+          const finalData = await statusRes.json();
+
+          renderUI(finalData);
+        }, 4000);
+
+      } catch (err) {
+        document.getElementById("result").innerHTML =
+          "<p style='color:red'>Error fetching data</p>";
+      }
+    }
+
+    function renderUI(response) {
+      if (response.status !== "complete") {
+        document.getElementById("result").innerHTML =
+          "<p>Still processing...</p>";
+        return;
+      }
+
+      const data = response.data.message.search_response[0].data.reg_records;
+
+      const farmer = data.FarmerData;
+      const land = data.land_data;
+
+      let html = "";
+
+      // 🔷 Farmer Card
+      html += `
+        <div class="card">
+          <h3>👤 Farmer Details</h3>
+          <p><b>Name:</b> ${farmer.farmer_name}</p>
+          <p><b>DOB:</b> ${farmer.dob}</p>
+          <p><b>Gender:</b> ${farmer.gender}</p>
+          <p><b>Mobile:</b> ${farmer.mobile_no}</p>
+          <p><b>Address:</b> ${farmer.address}</p>
+          <p><b>Category:</b> ${farmer.farmer_category}</p>
+        </div>
+      `;
+
+      // 🔷 Land Table
+      html += `
+        <div class="card">
+          <h3>🌾 Land Details</h3>
+          <table>
+            <tr>
+              <th>Farm ID</th>
+              <th>Survey No</th>
+              <th>Area</th>
+              <th>Owner</th>
+            </tr>
+      `;
+
+      land.forEach(l => {
+        html += `
+          <tr>
+            <td>${l.farm_id}</td>
+            <td>${l.survey_number}</td>
+            <td>${l.owner_extent} ${l.area_unit}</td>
+            <td>${l.owner_name_ror}</td>
+          </tr>
+        `;
       });
 
-      const data = await res.json();
+      html += `
+          </table>
+        </div>
+      `;
 
-      document.getElementById("result").innerText =
-        "Processing... ID: " + data.correlation_id;
-
-      // poll for result
-      setTimeout(async () => {
-        const statusRes = await fetch(
-          `http://localhost:3000/status/${data.correlation_id}`
-        );
-
-        const finalData = await statusRes.json();
-
-        document.getElementById("result").innerText =
-          JSON.stringify(finalData, null, 2);
-
-      }, 5000);
+      document.getElementById("result").innerHTML = html;
     }
   </script>
 
