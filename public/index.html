@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AIU Sandbox Tester</title>
+</head>
+<body>
+
+  <h2>AIU Sandbox Tester</h2>
+
+  <label>Select API:</label>
+  <select id="mapper">
+    <option value="i1002:o1004">Crop Area API</option>
+  </select>
+
+  <br><br>
+
+  <label>Aadhaar:</label>
+  <input type="text" id="aadhaar" />
+
+  <br><br>
+
+  <label>State Code:</label>
+  <input type="text" id="state" value="9" />
+
+  <br><br>
+
+  <button onclick="fetchData()">Fetch Data</button>
+
+  <h3>Result:</h3>
+  <pre id="result"></pre>
+
+  <script>
+    async function fetchData() {
+      const aadhaar = document.getElementById("aadhaar").value;
+      const state = document.getElementById("state").value;
+
+      const res = await fetch("http://localhost:3000/fetch-farmer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          aadhaar,
+          state
+        })
+      });
+
+      const data = await res.json();
+
+      document.getElementById("result").innerText =
+        "Processing... ID: " + data.correlation_id;
+
+      // poll for result
+      setTimeout(async () => {
+        const statusRes = await fetch(
+          `http://localhost:3000/status/${data.correlation_id}`
+        );
+
+        const finalData = await statusRes.json();
+
+        document.getElementById("result").innerText =
+          JSON.stringify(finalData, null, 2);
+
+      }, 5000);
+    }
+  </script>
+
+</body>
+</html>
