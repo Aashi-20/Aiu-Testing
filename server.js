@@ -6,6 +6,7 @@ const cors = require("cors");
 const fetchRoute = require("./routes/fetch");
 const webhookRoute = require("./routes/webhook");
 const statusRoute = require("./routes/status");
+const validateRoute = require("./routes/validate");
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(cors());
 app.use("/", fetchRoute);
 app.use("/", webhookRoute);
 app.use("/", statusRoute);
+app.use("/", validateRoute);
 app.use(express.static("public"));
 
 app.listen(process.env.PORT, () => {

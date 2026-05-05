@@ -1,32 +1,3 @@
-// const express = require("express");
-// const router = express.Router();
-
-// const { getToken } = require("../services/tokenService");
-// const { callSeek } = require("../services/seekService");
-
-// router.post("/fetch-farmer", async (req, res) => {
-//   try {
-//     const token = await getToken();
-
-//     const callbackUrl =
-//       "https://virtual-scheming-exclaim.ngrok-free.dev/webhook";
-
-//     const response = await callSeek(token, callbackUrl);
-
-//     res.json({
-//       correlation_id: response.message.correlation_id,
-//       status: "processing",
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: "Failed to fetch farmer data" });
-//   }
-// });
-
-// module.exports = router;
-
-
-
-
 const express = require("express");
 const router = express.Router();
 
@@ -45,14 +16,14 @@ router.post("/fetch-farmer", async (req, res) => {
       });
     }
 
-    // 🔷 Get token
+    
     const token = await getToken();
 
-    // 🔷 IMPORTANT: always update this if ngrok changes
+    
     const callbackUrl =
-      "https://virtual-scheming-exclaim.ngrok-free.dev/webhook";
+      "https://virtual-scheming-exclaim.ngrok-free.dev/on-seek";
 
-    // 🔷 Call SEEK API with dynamic values
+    
     const response = await callSeek(
       token,
       callbackUrl,

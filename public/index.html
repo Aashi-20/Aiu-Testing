@@ -4,31 +4,10 @@
   <title>AIU Sandbox Tester</title>
 
   <style>
-    body {
-      font-family: Arial;
-      margin: 40px;
-      background: #f5f6fa;
-    }
-
-    h2 {
-      color: #2f3640;
-    }
-
-    input, select, button {
-      padding: 8px;
-      margin: 5px;
-    }
-
-    button {
-      background: #273c75;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #40739e;
-    }
+    body { font-family: Arial; margin: 40px; background: #f5f6fa; }
+    input, select, button { padding: 8px; margin: 5px; }
+    button { background: #273c75; color: white; border: none; cursor: pointer; }
+    button:hover { background: #40739e; }
 
     .card {
       background: white;
@@ -46,134 +25,157 @@
     th, td {
       border: 1px solid #ccc;
       padding: 8px;
-      text-align: left;
     }
 
-    th {
-      background: #dcdde1;
-    }
+    th { background: #dcdde1; }
   </style>
 </head>
 
 <body>
 
-  <h2>AIU Sandbox Tester</h2>
+<h2>AIU Sandbox Tester</h2>
 
-  <label>Select API:</label>
-  <select id="mapper">
-    <option value="i1002:o1004">Crop Area API</option>
-  </select>
+<label>Mapper:</label>
+<select id="mapper">
+  <option value="o1004">Crop Area</option>
+</select>
 
-  <br>
+<br>
 
-  <label>Aadhaar:</label>
-  <input type="text" id="aadhaar" value="876094193181"/>
+<label>Aadhaar:</label>
+<input type="text" id="aadhaar" value="876094193181"/>
 
-  <br>
+<br>
 
-  <label>State Code:</label>
-  <input type="text" id="state" value="9"/>
+<label>State Code:</label>
+<input type="text" id="state" value="9"/>
 
-  <br>
+<br>
 
-  <button onclick="fetchData()">Fetch Data</button>
+<button onclick="fetchData()">Fetch Data</button>
+<button onclick="viewJSON()">View JSON</button>
+<button onclick="validateJSON()">Validate JSON</button>
 
-  <div id="result"></div>
+<div id="result"></div>
 
-  <script>
-    async function fetchData() {
-      const aadhaar = document.getElementById("aadhaar").value;
-      const state = document.getElementById("state").value;
+<script>
+let latestResponse = null;
 
-      document.getElementById("result").innerHTML =
-        "<p>⏳ Fetching data...</p>";
+// 🔥 FETCH DATA
+async function fetchData() {
+  const aadhaar = document.getElementById("aadhaar").value;
+  const state = document.getElementById("state").value;
 
-      try {
-        const res = await fetch("/fetch-farmer", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ aadhaar, state })
-        });
+  document.getElementById("result").innerHTML = "⏳ Fetching...";
 
-        const data = await res.json();
+  const res = await fetch("/fetch-farmer", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ aadhaar, state })
+  });
 
-        const correlationId = data.correlation_id;
+  const data = await res.json();
 
-        // Polling
-        setTimeout(async () => {
-          const statusRes = await fetch(`/status/${correlationId}`);
-          const finalData = await statusRes.json();
+  setTimeout(async () => {
+    const statusRes = await fetch(`/status/${data.correlation_id}`);
+    const finalData = await statusRes.json();
 
-          renderUI(finalData);
-        }, 4000);
+    latestResponse = finalData;
+    renderUI(finalData);   // ✅ RESTORED
+  }, 4000);
+}
 
-      } catch (err) {
-        document.getElementById("result").innerHTML =
-          "<p style='color:red'>Error fetching data</p>";
-      }
-    }
+// 🔥 RENDER UI
+function renderUI(response) {
+  if (response.status !== "complete") {
+    document.getElementById("result").innerHTML =
+      "<p>Still processing...</p>";
+    return;
+  }
 
-    function renderUI(response) {
-      if (response.status !== "complete") {
-        document.getElementById("result").innerHTML =
-          "<p>Still processing...</p>";
-        return;
-      }
+  const data = response.data.message.search_response[0].data.reg_records;
+  const farmer = data.FarmerData;
+  const land = data.land_data;
 
-      const data = response.data.message.search_response[0].data.reg_records;
+  let html = `
+    <div class="card">
+      <h3>👤 Farmer Details</h3>
+      <p><b>Name:</b> ${farmer.farmer_name}</p>
+      <p><b>DOB:</b> ${farmer.dob}</p>
+      <p><b>Gender:</b> ${farmer.gender}</p>
+      <p><b>Mobile:</b> ${farmer.mobile_no}</p>
+      <p><b>Address:</b> ${farmer.address}</p>
+    </div>
+  `;
 
-      const farmer = data.FarmerData;
-      const land = data.land_data;
+  html += `
+    <div class="card">
+      <h3>🌾 Land Details</h3>
+      <table>
+        <tr>
+          <th>Farm ID</th>
+          <th>Survey No</th>
+          <th>Area</th>
+          <th>Owner</th>
+        </tr>
+  `;
 
-      let html = "";
+  land.forEach(l => {
+    html += `
+      <tr>
+        <td>${l.farm_id}</td>
+        <td>${l.survey_number}</td>
+        <td>${l.owner_extent} ${l.area_unit}</td>
+        <td>${l.owner_name_ror}</td>
+      </tr>
+    `;
+  });
 
-      // 🔷 Farmer Card
-      html += `
-        <div class="card">
-          <h3>👤 Farmer Details</h3>
-          <p><b>Name:</b> ${farmer.farmer_name}</p>
-          <p><b>DOB:</b> ${farmer.dob}</p>
-          <p><b>Gender:</b> ${farmer.gender}</p>
-          <p><b>Mobile:</b> ${farmer.mobile_no}</p>
-          <p><b>Address:</b> ${farmer.address}</p>
-          <p><b>Category:</b> ${farmer.farmer_category}</p>
-        </div>
-      `;
+  html += `</table></div>`;
 
-      // 🔷 Land Table
-      html += `
-        <div class="card">
-          <h3>🌾 Land Details</h3>
-          <table>
-            <tr>
-              <th>Farm ID</th>
-              <th>Survey No</th>
-              <th>Area</th>
-              <th>Owner</th>
-            </tr>
-      `;
+  document.getElementById("result").innerHTML = html;
+}
 
-      land.forEach(l => {
-        html += `
-          <tr>
-            <td>${l.farm_id}</td>
-            <td>${l.survey_number}</td>
-            <td>${l.owner_extent} ${l.area_unit}</td>
-            <td>${l.owner_name_ror}</td>
-          </tr>
-        `;
-      });
+// 🔥 VIEW JSON
+function viewJSON() {
+  if (!latestResponse) return;
 
-      html += `
-          </table>
-        </div>
-      `;
+  document.getElementById("result").innerHTML =
+    `<pre>${JSON.stringify(latestResponse, null, 2)}</pre>`;
+}
 
-      document.getElementById("result").innerHTML = html;
-    }
-  </script>
+// 🔥 VALIDATE JSON
+async function validateJSON() {
+  if (!latestResponse) return;
+
+  const mapper = document.getElementById("mapper").value;
+
+  const res = await fetch("/validate", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      actual: latestResponse,
+      mapper
+    })
+  });
+
+  const result = await res.json();
+
+  let html = `<div class="card"><h3>🧪 Validation Result</h3>`;
+
+  if (result.valid) {
+    html += `<p style="color:green">✔ JSON is valid</p>`;
+  } else {
+    html += `<p style="color:red">❌ Issues found</p><ul>`;
+    result.errors.forEach(e => html += `<li>${e}</li>`);
+    html += `</ul>`;
+  }
+
+  html += `</div>`;
+
+  document.getElementById("result").innerHTML = html;
+}
+</script>
 
 </body>
 </html>
